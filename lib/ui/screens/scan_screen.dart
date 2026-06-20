@@ -32,58 +32,60 @@ class _ScanScreenState extends State<ScanScreen> {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
+        final messenger = ScaffoldMessenger.of(context);
         final editor = Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Business Card Scan', style: Theme.of(context).textTheme.headlineSmall),
+            const SizedBox(height: 4),
+            const Text('Mobile can use local OCR. Web demo supports pasted OCR text.'),
+            const SizedBox(height: 16),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
               children: [
-                Text('Business Card Scan', style: Theme.of(context).textTheme.headlineSmall),
-                const SizedBox(height: 4),
-                const Text('Mobile can use local OCR. Web demo supports pasted OCR text.'),
-                const SizedBox(height: 16),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    FilledButton.icon(
-                      onPressed: _isWorking ? null : _pickImageAndRecognize,
-                      icon: const Icon(Icons.image_search),
-                      label: Text(kIsWeb ? 'Pick image (web fallback)' : 'Pick image + OCR'),
-                    ),
-                    OutlinedButton.icon(
-                      onPressed: _parseText,
-                      icon: const Icon(Icons.rule),
-                      label: const Text('Parse text'),
-                    ),
-                    if (_parsed != null)
-                      FilledButton.icon(
-                        onPressed: () async {
-                          await widget.appState.addContactFromParsedCard(_parsed!);
-                          if (mounted) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(content: Text('Saved parsed contact.')),
-                            );
-                          }
-                        },
-                        icon: const Icon(Icons.save),
-                        label: const Text('Save contact'),
-                      ),
-                  ],
+                FilledButton.icon(
+                  onPressed: _isWorking ? null : _pickImageAndRecognize,
+                  icon: const Icon(Icons.image_search),
+                  label: const Text(kIsWeb ? 'Pick image (web fallback)' : 'Pick image + OCR'),
                 ),
-                const SizedBox(height: 12),
-                Expanded(
-                  child: TextField(
-                    controller: _rawTextController,
-                    expands: true,
-                    maxLines: null,
-                    minLines: null,
-                    textAlignVertical: TextAlignVertical.top,
-                    decoration: const InputDecoration(
-                      border: OutlineInputBorder(),
-                      hintText: 'Paste OCR text here, then parse.',
-                    ),
+                OutlinedButton.icon(
+                  onPressed: _parseText,
+                  icon: const Icon(Icons.rule),
+                  label: const Text('Parse text'),
+                ),
+                if (_parsed != null)
+                  FilledButton.icon(
+                    onPressed: () async {
+                      await widget.appState.addContactFromParsedCard(_parsed!);
+                      if (!mounted) {
+                        return;
+                      }
+                      messenger.showSnackBar(
+                        const SnackBar(content: Text('Saved parsed contact.')),
+                      );
+                    },
+                    icon: const Icon(Icons.save),
+                    label: const Text('Save contact'),
                   ),
-                ),
               ],
-            );
+            ),
+            const SizedBox(height: 12),
+            Expanded(
+              child: TextField(
+                controller: _rawTextController,
+                expands: true,
+                maxLines: null,
+                minLines: null,
+                textAlignVertical: TextAlignVertical.top,
+                decoration: const InputDecoration(
+                  border: OutlineInputBorder(),
+                  hintText: 'Paste OCR text here, then parse.',
+                ),
+              ),
+            ),
+          ],
+        );
         final preview = _ParsedPreview(parsed: _parsed);
 
         return Padding(
