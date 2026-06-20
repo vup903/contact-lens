@@ -233,13 +233,17 @@ String _extractCompany(
   List<String> candidateLines,
   String nameLine,
 ) {
-  final orgLines = lines.where(_looksLikeOrganization).toList()
+  final searchableLines = candidateLines.isNotEmpty ? candidateLines : lines;
+  final orgLines = searchableLines.where(_looksLikeOrganization).toList()
     ..sort((a, b) => b.length.compareTo(a.length));
   if (orgLines.isNotEmpty) {
     return orgLines.first;
   }
 
-  final companyLine = lines.firstWhere(_looksLikeCompany, orElse: () => '');
+  final companyLine = searchableLines.firstWhere(
+    _looksLikeCompany,
+    orElse: () => '',
+  );
   if (companyLine.isNotEmpty) {
     return companyLine;
   }
