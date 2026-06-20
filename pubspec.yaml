@@ -1,0 +1,25 @@
+name: contact_lens
+description: Local-first business card and contact RAG demo for mobile and web.
+publish_to: 'none'
+version: 0.1.0+1
+
+environment:
+  sdk: '>=3.4.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  collection: ^1.18.0
+  crypto: ^3.0.3
+  google_mlkit_text_recognition: ^0.13.0
+  image_picker: ^1.1.2
+  shared_preferences: ^2.2.3
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+flutter:
+  uses-material-design: true
+

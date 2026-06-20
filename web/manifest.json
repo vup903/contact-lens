@@ -1,0 +1,12 @@
+{
+  "name": "Contact Lens",
+  "short_name": "Contact Lens",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#2457E6",
+  "description": "Local-first contact RAG demo.",
+  "orientation": "portrait-primary",
+  "prefer_related_applications": false
+}
+
