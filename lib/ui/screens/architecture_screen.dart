@@ -19,7 +19,11 @@ class ArchitectureScreen extends StatelessWidget {
         Text('Architecture Demo', style: Theme.of(context).textTheme.headlineSmall),
         const SizedBox(height: 8),
         const Text(
-          'Contact Lens is local-first: contacts stay on device/browser storage, local RAG ranks candidates, and no paid model API is called.',
+          'Contact Lens is a tiered, cost-aware retriever: a cheap lexical tier '
+          'answers every query, a confidence gate detects the hard ones, and a '
+          'semantic rerank tier fires only for those. Quality is measured with a '
+          'labeled eval set (precision@k, nDCG@5). Running on-device is a result '
+          'of the cost design, not its headline.',
         ),
         const SizedBox(height: 16),
         _StepCard(
@@ -34,18 +38,32 @@ class ArchitectureScreen extends StatelessWidget {
               'Fingerprint: ${manifest.pipelineFingerprint.tokenizerVersion} / ${manifest.pipelineFingerprint.weightsVersion}\nIndexed records: ${manifest.contacts.length}',
         ),
         const _StepCard(
-          icon: Icons.manage_search,
-          title: '3. Retrieval',
-          body: 'Tokenizer + weighted field matching ranks name, company, job title, groups, and notes.',
+          icon: Icons.bolt_outlined,
+          title: '3. Tier 1 — Lexical (always on)',
+          body: 'Tokenizer + weighted field matching ranks name, company, job '
+              'title, groups, and notes. Pure Dart, sub-millisecond, ~0 cost.',
         ),
         const _StepCard(
           icon: Icons.rule,
-          title: '4. Recommendation',
-          body: 'The assistant renders deterministic reasons from matched fields. It does not invent background.',
+          title: '4. Confidence gate',
+          body: 'Escalates only when Tier 1 is unsure — low top score or a small '
+              'top-1 vs top-2 margin. Confident queries stop here.',
+        ),
+        const _StepCard(
+          icon: Icons.hub_outlined,
+          title: '5. Tier 2 — Semantic rerank (only when unsure)',
+          body: 'On-device embeddings re-score the candidate pool by cosine '
+              'similarity and blend with the lexical score. No network, no API key.',
+        ),
+        const _StepCard(
+          icon: Icons.query_stats,
+          title: '6. Measured quality',
+          body: 'tool/eval.dart and tool/eval_hybrid.dart score retrievers on a '
+              'labeled set; hybrid nDCG@5 is expected to match or beat lexical.',
         ),
         const _StepCard(
           icon: Icons.document_scanner_outlined,
-          title: '5. Scanning',
+          title: '7. Scanning',
           body: 'Business card OCR text is parsed with local rules adapted from the original Bizcard project.',
         ),
       ],
