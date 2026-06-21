@@ -15,6 +15,11 @@ dependencies:
   google_mlkit_text_recognition: ^0.13.0
   image_picker: ^1.1.2
   shared_preferences: ^2.2.3
+  # Context capture (mobile only; web/desktop use the stub adapters).
+  geolocator: ^13.0.1        # one-shot GPS fix at exchange time
+  geocoding: ^3.0.0          # reverse geocode → editable place label
+  record: ^5.1.2             # record the voice note
+  speech_to_text: ^7.0.0     # on-device transcription
 
 dev_dependencies:
   flutter_test:
