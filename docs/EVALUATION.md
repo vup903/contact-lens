@@ -28,8 +28,21 @@ dart run tool/eval_hybrid.dart
 
 Each command runs the labeled eval set through `runEval(...)`, prints a per-query
 breakdown and an aggregate row, and (for `tool/eval.dart`) **exits non-zero if
-aggregate nDCG@5 falls below a documented floor** — so the same command works as
-a CI gate, not just a demo print.
+mean nDCG@5 falls below the documented floor of `0.45`** — so the same command
+works as a CI gate, not just a demo print.
+
+> **How to read the scorecard** (authoritative, from the harness author). Run
+> `dart run tool/eval.dart`. Each query prints **`P@k`** (precision@k — fraction
+> of the top `k` results that are relevant) and **`N@k`** (nDCG@k — ranking
+> quality vs. the ideal ordering, 0–1 where `1.0` means perfectly ordered). The
+> **Aggregate** block averages each metric over all queries; the **Headline**
+> line is the demo number to quote: precision@1, precision@3, nDCG@5. The
+> deliberate no-match query scores `0` by design — that's correct behaviour, not
+> a bug. The CLI exits non-zero if mean nDCG@5 drops below the documented floor
+> (`0.45`), so CI gates on retrieval quality. When comparing retrievers, higher
+> nDCG@5 is better; the hybrid tier must meet or beat the lexical baseline.
+
+The sections below expand on what those metrics mean and how to act on them.
 
 ## The eval set
 
@@ -106,9 +119,11 @@ class EvalReport {
 
 Read it in three passes:
 
-1. **Aggregate row first.** Compare `meanNdcgAtK[5]` between the lexical and
-   hybrid runs. The success criterion is `nDCG@5(hybrid) ≥ nDCG@5(lexical)`. If
-   `precision@1` is also up, the right contact is landing at rank 1 more often.
+1. **Aggregate block / Headline line first.** Compare the `N@5` figure
+   (`meanNdcgAtK[5]`) between the lexical and hybrid runs. The success criterion
+   is `nDCG@5(hybrid) ≥ nDCG@5(lexical)`, and both must clear the `0.45` floor. If
+   the Headline `P@1` is also up, the right contact is landing at rank 1 more
+   often.
 2. **Per-query rows next.** Find the queries where hybrid beats lexical — these
    should be the low-overlap / near-tie cases, i.e. exactly the queries the
    confidence gate escalates. That alignment is the evidence the gate is firing
