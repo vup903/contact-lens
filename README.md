@@ -195,12 +195,20 @@ Beyond pass/fail tests, retrieval quality is measured against a labeled eval set
 
 ```bash
 dart run tool/eval.dart         # lexical baseline scorecard
-dart run tool/eval_hybrid.dart  # hybrid (tiered) scorecard
+dart run tool/eval_hybrid.dart  # three-way: lexical vs semantic vs hybrid
 ```
 
-These print per-query and aggregate precision@k and nDCG@5, and the hybrid run is
-expected to land **nDCG@5 ≥ lexical**. See [`docs/EVALUATION.md`](docs/EVALUATION.md)
-for how to read the scorecard and what each metric means.
+These print per-query and aggregate precision@k and nDCG@5. On the current
+labeled set the semantic tier (a real multilingual MiniLM, ONNX, precomputed
+offline — see [`tool/embed/`](tool/embed/)) lifts ranking quality on the hard
+cross-language queries lexical scores 0 on:
+
+```
+nDCG@5  lexical 0.687  →  hybrid 0.854   (Δ +0.167)
+```
+
+See [`docs/EVALUATION.md`](docs/EVALUATION.md) for how to read the scorecard and
+[`docs/RETRIEVAL.md`](docs/RETRIEVAL.md) for the tier design behind these numbers.
 
 ## 7. Privacy Boundary
 

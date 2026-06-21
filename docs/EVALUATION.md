@@ -22,14 +22,26 @@ flutter pub get
 # Lexical baseline scorecard
 dart run tool/eval.dart
 
-# Hybrid (tiered) scorecard — expected to match or beat the baseline on nDCG@5
+# Three-way scorecard: lexical vs semantic vs hybrid (gates hybrid ≥ lexical)
 dart run tool/eval_hybrid.dart
 ```
 
 Each command runs the labeled eval set through `runEval(...)`, prints a per-query
 breakdown and an aggregate row, and (for `tool/eval.dart`) **exits non-zero if
 mean nDCG@5 falls below the documented floor of `0.45`** — so the same command
-works as a CI gate, not just a demo print.
+works as a CI gate, not just a demo print. `tool/eval_hybrid.dart` prints three
+scorecards (lexical, semantic-only, hybrid) and exits non-zero if hybrid nDCG@5
+regresses below the lexical baseline.
+
+On the current 14-query set the headline comparison is:
+
+```
+nDCG@5  lexical 0.687   semantic 0.854   hybrid 0.854   (hybrid Δ vs lexical +0.167)
+```
+
+The lift is concentrated in the hard cross-language / paraphrase rows (e.g. a
+Chinese query for a data-residency consultant correctly recalling the English-only
+"on-premise data privacy" contact) where lexical scores 0.
 
 > **How to read the scorecard** (authoritative, from the harness author). Run
 > `dart run tool/eval.dart`. Each query prints **`P@k`** (precision@k — fraction
