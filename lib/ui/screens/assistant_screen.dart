@@ -42,7 +42,7 @@ class _AssistantScreenState extends State<AssistantScreen> {
         children: [
           Text('Local RAG Assistant', style: Theme.of(context).textTheme.headlineSmall),
           const SizedBox(height: 4),
-          const Text('On-device tiered retrieval: a cheap lexical tier, with a semantic rerank that fires only when the lexical tier is unsure.'),
+          const Text('Tiered retrieval: a cheap lexical tier, plus a real multilingual MiniLM tier that recalls and reranks — but only when the lexical tier is unsure.'),
           const SizedBox(height: 8),
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
@@ -50,10 +50,10 @@ class _AssistantScreenState extends State<AssistantScreen> {
             onChanged: (value) {
               setState(() => widget.appState.setHybridEnabled(value));
             },
-            title: const Text('Hybrid semantic rerank'),
+            title: const Text('Hybrid semantic tier'),
             subtitle: Text(
               widget.appState.hybridEnabled
-                  ? 'Lexical candidates, reranked by on-device embeddings when the confidence gate trips.'
+                  ? 'When the confidence gate trips, a multilingual MiniLM recalls cross-language matches and reranks the pool.'
                   : 'Lexical baseline only (no semantic tier).',
             ),
           ),
@@ -100,9 +100,9 @@ class _RecommendationView extends StatelessWidget {
             color: Theme.of(context).colorScheme.secondaryContainer,
             child: const ListTile(
               leading: Icon(Icons.auto_awesome),
-              title: Text('Semantic rerank fired'),
+              title: Text('Semantic tier fired'),
               subtitle: Text(
-                'The lexical tier was unsure, so on-device embeddings re-ranked the candidates.',
+                'The lexical tier was unsure, so a multilingual MiniLM recalled and reranked the candidates.',
               ),
             ),
           ),

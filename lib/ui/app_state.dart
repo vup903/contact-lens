@@ -4,7 +4,10 @@ import '../data/data.dart';
 import '../domain/domain.dart';
 import '../rag/hybrid_retriever.dart';
 import '../rag/rag.dart';
+import '../rag/semantic_contact_retriever.dart';
 import '../rag/semantic/embedding_cache.dart';
+import '../rag/semantic/precomputed_embedding_model.dart';
+import '../rag/semantic/semantic_reranker.dart';
 import '../scan/scan.dart';
 
 class ContactLensState extends ChangeNotifier {
@@ -15,10 +18,17 @@ class ContactLensState extends ChangeNotifier {
   final ContactRepository _repository;
   final _recommender = const LocalContactRecommender();
 
-  // Tier-2 retriever. Holds a cross-query embedding cache so unchanged contacts
-  // are embedded at most once per session.
-  final HybridContactRetriever _hybrid =
-      HybridContactRetriever(cache: EmbeddingCache());
+  // Tier-2 retriever: lexical candidates plus a gated semantic tier backed by a
+  // real multilingual MiniLM (precomputed offline; see tool/embed). The semantic
+  // tier both *recalls* contacts lexical missed and *reranks* the pool. A
+  // cross-query embedding cache embeds each unchanged contact at most once.
+  // Queries/contacts outside the precomputed set yield a zero vector, so the UI
+  // degrades gracefully to lexical order rather than inventing a match.
+  final HybridContactRetriever _hybrid = HybridContactRetriever(
+    reranker: const SemanticReranker(model: PrecomputedEmbeddingModel()),
+    semantic: const SemanticContactRetriever(model: PrecomputedEmbeddingModel()),
+    cache: EmbeddingCache(),
+  );
 
   var _contacts = <Contact>[];
   var _groups = <ContactGroup>[];
@@ -135,7 +145,7 @@ class ContactLensState extends ChangeNotifier {
         .toList()
       ..sort();
     final tier = _lastRerankFired
-        ? 'hybrid retrieval (lexical candidates + semantic rerank)'
+        ? 'hybrid retrieval (lexical candidates + semantic recall & rerank)'
         : 'lexical tier only (confidence gate stayed confident)';
 
     return LocalRecommendation(
