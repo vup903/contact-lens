@@ -41,7 +41,7 @@ Email: kuei.hua@example.gov.tw
 ''';
 
 void main(List<String> args) {
-  final recommender = const LocalContactRecommender();
+  const recommender = LocalContactRecommender();
   final queries = args.isNotEmpty ? args : _demoQueries;
 
   stdout.writeln('Contact Lens — local RAG demo');
