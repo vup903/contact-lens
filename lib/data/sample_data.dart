@@ -76,5 +76,39 @@ final sampleContacts = <Contact>[
     other:
         'Organizes AI meetups and can introduce founders, cloud partners, and developer advocates.',
   ),
+  // Headline demo contact: an ML engineer met "last month" (relative to the
+  // 2026-06-21 demo clock) in San Francisco. Drives the flagship contextual
+  // query 「上個月在舊金山見面、做機器學習那個工程師叫什麼？」.
+  Contact(
+    id: 'sample-daniel-rivera',
+    createdAt: DateTime.utc(2026, 5, 18),
+    name: 'Daniel Rivera',
+    company: 'Loomwork AI',
+    jobTitle: 'Machine Learning Engineer',
+    email: 'daniel.rivera@example.com',
+    groups: const <String>['AI ecosystem'],
+    other:
+        'Builds large-scale recommendation models and retrieval-augmented pipelines.',
+    encounters: <Encounter>[
+      Encounter(
+        id: 'enc-daniel-rivera-1',
+        occurredAt: DateTime.utc(2026, 5, 18, 19),
+        placeLabel: 'San Francisco, CA',
+        geo: const GeoPoint(latitude: 37.7749, longitude: -122.4194),
+        note:
+            'Met at a machine learning conference in San Francisco. He works on '
+            'recommendation systems and RAG infrastructure.',
+        summary:
+            'ML conference in San Francisco; works on recommendation systems and RAG.',
+        tags: const <String>[
+          'machine learning',
+          'recommendation systems',
+          'rag',
+          'conference',
+        ],
+        source: EncounterSource.scan,
+      ),
+    ],
+  ),
 ];
 
