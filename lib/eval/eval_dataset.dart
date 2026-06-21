@@ -9,7 +9,14 @@ import 'eval_runner.dart';
 /// including where the lexical tier is weak (synonyms, cross-language intent).
 ///
 /// Reference contact ids: `sample-alex-chen`, `sample-mia-lin`,
-/// `sample-jordan-lee`, `sample-wu-kuei-hua`, `sample-priya-shah`.
+/// `sample-jordan-lee`, `sample-wu-kuei-hua`, `sample-priya-shah`,
+/// `sample-daniel-rivera` (the SF/ML encounter contact).
+///
+/// The final block exercises encounter-derived fields (`place`, `tags`,
+/// `encounterNotes`) that A1's RAG bridge folds into the index. The eval harness
+/// runs the *base* retriever directly, so these test that meeting place / topic
+/// terms are reachable lexically and semantically — the time/place *filtering*
+/// itself is covered by `ContextualRetriever`'s own tests.
 const evalCases = <EvalCase>[
   EvalCase(
     query: 'vector search and on-premise data privacy review',
@@ -83,5 +90,27 @@ const evalCases = <EvalCase>[
     query: 'find a marine biologist who studies coral reefs in Antarctica',
     note: 'EN · deliberate no-match',
     relevance: <String, double>{},
+  ),
+  // --- Encounter-context cases: meeting place + topic surfaced from the
+  // encounter fields the RAG bridge now indexes (place / tags / notes).
+  EvalCase(
+    query: 'machine learning engineer I met in San Francisco',
+    note: 'EN · role + meeting place (→ Daniel via jobTitle + place)',
+    relevance: <String, double>{'sample-daniel-rivera': 3},
+  ),
+  EvalCase(
+    query: 'recommendation systems and retrieval-augmented pipelines',
+    note: 'EN · encounter topic (→ Daniel via notes/tags)',
+    relevance: <String, double>{'sample-daniel-rivera': 3},
+  ),
+  EvalCase(
+    query: 'someone I met at the San Francisco ML conference',
+    note: 'EN · place + event tag (→ Daniel via place + tags)',
+    relevance: <String, double>{'sample-daniel-rivera': 3},
+  ),
+  EvalCase(
+    query: '在舊金山認識、做機器學習的工程師',
+    note: 'ZH · place + role, no English overlap (→ Daniel, semantic earns it)',
+    relevance: <String, double>{'sample-daniel-rivera': 3},
   ),
 ];
