@@ -1,3 +1,5 @@
+import 'encounter.dart';
+
 class Contact {
   const Contact({
     required this.id,
@@ -15,6 +17,7 @@ class Contact {
     this.other = '',
     this.groups = const <String>[],
     this.images = const <ContactImage>[],
+    this.encounters = const <Encounter>[],
   });
 
   final String id;
@@ -32,6 +35,7 @@ class Contact {
   final String other;
   final List<String> groups;
   final List<ContactImage> images;
+  final List<Encounter> encounters;
 
   String get displayName => name.trim().isEmpty ? 'Unnamed contact' : name.trim();
 
@@ -59,6 +63,7 @@ class Contact {
     String? other,
     List<String>? groups,
     List<ContactImage>? images,
+    List<Encounter>? encounters,
   }) {
     return Contact(
       id: id ?? this.id,
@@ -76,6 +81,7 @@ class Contact {
       other: other ?? this.other,
       groups: groups ?? this.groups,
       images: images ?? this.images,
+      encounters: encounters ?? this.encounters,
     );
   }
 
@@ -96,6 +102,7 @@ class Contact {
       'other': other,
       'groups': groups,
       'images': images.map((image) => image.toJson()).toList(),
+      'encounters': encounters.map((encounter) => encounter.toJson()).toList(),
     };
   }
 
@@ -121,6 +128,10 @@ class Contact {
           .whereType<Map>()
           .map((item) => ContactImage.fromJson(item.cast<String, Object?>()))
           .toList(growable: false),
+      encounters: ((json['encounters'] as List?) ?? const <Object?>[])
+          .whereType<Map>()
+          .map((item) => Encounter.fromJson(item.cast<String, Object?>()))
+          .toList(growable: false),
     );
   }
 
@@ -132,6 +143,9 @@ class Contact {
       'jobTitle': jobTitle,
       'other': other,
       'groups': List<String>.from(groups)..sort(),
+      'encounters': (encounters.map((e) => e.toIndexJson()).toList()
+            ..sort((a, b) =>
+                (a['id'] as String).compareTo(b['id'] as String))),
     };
   }
 }
