@@ -165,6 +165,26 @@ business card. Pass your own query to override the defaults:
 dart run tool/demo.dart "Find a Taiwan finance contact"
 ```
 
+### Free-form semantic queries (optional embedding service)
+
+The Assistant's curated queries are answered from baked offline vectors with no
+extra process. To get **real semantics on arbitrary typed queries** (e.g. a
+Chinese phrase that shares no tokens with an English contact), run the local
+embedding service — the app embeds the query at request time and otherwise falls
+back to the precomputed vectors and the lexical tier:
+
+```bash
+# one-time: create the venv and install fastembed
+python -m venv tool/embed/.venv
+tool/embed/.venv/Scripts/python -m pip install -r tool/embed/requirements.txt
+
+# start the service (keep it running during the demo)
+tool/embed/.venv/Scripts/python tool/embed/serve_embeddings.py   # 127.0.0.1:8077
+```
+
+The service is optional: without it the demo still runs, just without on-the-fly
+semantics for queries outside the precomputed set. See [`tool/embed/`](tool/embed/).
+
 If native platform folders need to be regenerated in a fresh Flutter
 installation:
 

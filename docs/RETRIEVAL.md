@@ -78,10 +78,13 @@ Runtime** (via `fastembed`). Because the eval/demo query set is fixed, its vecto
 are **precomputed offline** by `tool/embed/build_embeddings.py` and baked into a
 generated Dart map (`PrecomputedEmbeddingModel`). That keeps true semantics in the
 Flutter Web demo and the CLI with **zero runtime inference and no model download**.
-A query or contact outside the precomputed set yields a zero vector, so the tier
-contributes nothing rather than inventing a match. A dependency-free
-**hashing embedding** remains behind the same `EmbeddingModel` interface as the
-offline fallback for arbitrary text.
+For **free-form live queries** outside that set, an optional local embedding
+service (`tool/embed/serve_embeddings.py`, the same MiniLM) embeds the query at
+request time, so the UI is not limited to curated phrases. The resolution order
+is **runtime cache → baked vectors → zero vector**: if the service is down, an
+unknown query yields a zero vector and the tier contributes nothing rather than
+inventing a match. A dependency-free **hashing embedding** is also available
+behind the same `EmbeddingModel` interface as a fully offline fallback.
 
 ## The confidence gate — where the money is
 
