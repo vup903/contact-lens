@@ -94,6 +94,23 @@ flutter run -d ios
 flutter run -d android
 ```
 
+### Headless demo (no device required)
+
+The core retrieval and parser layers are pure Dart, so they can be exercised
+from a terminal without an emulator or browser:
+
+```bash
+flutter pub get
+dart run tool/demo.dart
+```
+
+This runs the deterministic RAG over the sample contacts and parses a sample
+business card. Pass your own query to override the defaults:
+
+```bash
+dart run tool/demo.dart "Find a Taiwan finance contact"
+```
+
 If native platform folders need to be regenerated in a fresh Flutter
 installation:
 
