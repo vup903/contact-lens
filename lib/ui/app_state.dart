@@ -6,7 +6,7 @@ import '../rag/hybrid_retriever.dart';
 import '../rag/rag.dart';
 import '../rag/semantic_contact_retriever.dart';
 import '../rag/semantic/embedding_cache.dart';
-import '../rag/semantic/precomputed_embedding_model.dart';
+import '../rag/semantic/runtime_embedding_model.dart';
 import '../rag/semantic/semantic_reranker.dart';
 import '../scan/scan.dart';
 
@@ -18,15 +18,18 @@ class ContactLensState extends ChangeNotifier {
   final ContactRepository _repository;
   final _recommender = const LocalContactRecommender();
 
-  // Tier-2 retriever: lexical candidates plus a gated semantic tier backed by a
-  // real multilingual MiniLM (precomputed offline; see tool/embed). The semantic
-  // tier both *recalls* contacts lexical missed and *reranks* the pool. A
-  // cross-query embedding cache embeds each unchanged contact at most once.
-  // Queries/contacts outside the precomputed set yield a zero vector, so the UI
-  // degrades gracefully to lexical order rather than inventing a match.
-  final HybridContactRetriever _hybrid = HybridContactRetriever(
-    reranker: const SemanticReranker(model: PrecomputedEmbeddingModel()),
-    semantic: const SemanticContactRetriever(model: PrecomputedEmbeddingModel()),
+  // Real multilingual MiniLM embeddings. Known text resolves from baked offline
+  // vectors; free-form text is embedded at request time via the local service
+  // (tool/embed/serve_embeddings.py) after `warm(...)`. Unreachable service =>
+  // zero vector => graceful lexical fallback.
+  final RuntimeEmbeddingModel _embedModel = RuntimeEmbeddingModel();
+
+  // Tier-2 retriever: lexical candidates plus a gated semantic tier that both
+  // *recalls* contacts lexical missed and *reranks* the pool. A cross-query
+  // embedding cache embeds each unchanged contact at most once.
+  late final HybridContactRetriever _hybrid = HybridContactRetriever(
+    reranker: SemanticReranker(model: _embedModel),
+    semantic: SemanticContactRetriever(model: _embedModel),
     cache: EmbeddingCache(),
   );
 
@@ -110,7 +113,11 @@ class ContactLensState extends ChangeNotifier {
     notifyListeners();
   }
 
-  LocalRecommendation recommend(String query) {
+  /// Whether the embedding service was reachable on the most recent hybrid query
+  /// (false when free-form semantics fell back to precomputed/lexical only).
+  bool get embedServiceReachable => _embedModel.serviceReachable;
+
+  Future<LocalRecommendation> recommend(String query) async {
     final trimmed = query.trim();
     // The lexical-only path (toggle off) and the empty-query case both reuse the
     // recommender's existing copy/empty-state messaging.
@@ -119,10 +126,24 @@ class ContactLensState extends ChangeNotifier {
       return _recommender.recommend(query, _contacts);
     }
 
+    // Warm runtime embeddings for the query (and any not-yet-known contacts) so
+    // the semantic tier works on free-form input, not just precomputed queries.
+    await _embedModel.warm(<String>[
+      trimmed,
+      for (final contact in _contacts) _contactEmbedText(contact),
+    ]);
+
     final retrieved = _hybrid.retrieve(trimmed, _contacts, k: 5);
     _lastRerankFired =
         retrieved.any((item) => item.matchReason.contains('semantic rerank'));
     return _buildHybridRecommendation(trimmed, retrieved);
+  }
+
+  /// Mirror of the text the semantic tier embeds for a contact (field values,
+  /// without the field-name keys), so [recommend] can warm them.
+  String _contactEmbedText(Contact contact) {
+    final document = contactToRagDocument(contact);
+    return document.fields.values.where((value) => value.isNotEmpty).join(' ');
   }
 
   LocalRecommendation _buildHybridRecommendation(

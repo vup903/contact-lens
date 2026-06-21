@@ -19,11 +19,18 @@ class _AssistantScreenState extends State<AssistantScreen> {
   final _queryController = TextEditingController();
   LocalRecommendation? _result;
   bool _rerankFired = false;
+  bool _loading = false;
 
-  void _runQuery() {
+  Future<void> _runQuery() async {
+    setState(() => _loading = true);
+    final result = await widget.appState.recommend(_queryController.text);
+    if (!mounted) {
+      return;
+    }
     setState(() {
-      _result = widget.appState.recommend(_queryController.text);
+      _result = result;
       _rerankFired = widget.appState.lastRerankFired;
+      _loading = false;
     });
   }
 
@@ -35,51 +42,78 @@ class _AssistantScreenState extends State<AssistantScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('Local RAG Assistant', style: Theme.of(context).textTheme.headlineSmall),
-          const SizedBox(height: 4),
-          const Text('Tiered retrieval: a cheap lexical tier, plus a real multilingual MiniLM tier that recalls and reranks — but only when the lexical tier is unsure.'),
-          const SizedBox(height: 8),
-          SwitchListTile(
-            contentPadding: EdgeInsets.zero,
-            value: widget.appState.hybridEnabled,
-            onChanged: (value) {
-              setState(() => widget.appState.setHybridEnabled(value));
-            },
-            title: const Text('Hybrid semantic tier'),
-            subtitle: Text(
-              widget.appState.hybridEnabled
-                  ? 'When the confidence gate trips, a multilingual MiniLM recalls cross-language matches and reranks the pool.'
-                  : 'Lexical baseline only (no semantic tier).',
-            ),
+    final theme = Theme.of(context);
+    return Align(
+      alignment: Alignment.topCenter,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 760),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Compact header: title + a small inline hybrid toggle, so the
+              // result list below keeps most of the vertical space.
+              Row(
+                children: [
+                  Expanded(
+                    child: Text('Local RAG Assistant', style: theme.textTheme.titleLarge),
+                  ),
+                  Text('Hybrid', style: theme.textTheme.labelLarge),
+                  Switch(
+                    value: widget.appState.hybridEnabled,
+                    onChanged: (value) {
+                      setState(() => widget.appState.setHybridEnabled(value));
+                    },
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _queryController,
+                      minLines: 1,
+                      maxLines: 3,
+                      decoration: const InputDecoration(
+                        isDense: true,
+                        hintText: 'e.g. Find a product designer for mobile onboarding',
+                        border: OutlineInputBorder(),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  FilledButton.icon(
+                    onPressed: _loading ? null : _runQuery,
+                    icon: _loading
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.manage_search),
+                    label: const Text('Search'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              Text(
+                widget.appState.hybridEnabled
+                    ? 'Tiered: lexical + a multilingual MiniLM that recalls & reranks only when the lexical tier is unsure. No model API.'
+                    : 'Lexical baseline only — no semantic tier, no model API.',
+                style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.outline),
+              ),
+              const Divider(height: 20),
+              Expanded(
+                child: _result == null
+                    ? const Center(child: Text('Ask a business need to see ranked, explainable matches.'))
+                    : _RecommendationView(result: _result!, rerankFired: _rerankFired),
+              ),
+            ],
           ),
-          const SizedBox(height: 8),
-          TextField(
-            controller: _queryController,
-            minLines: 2,
-            maxLines: 4,
-            decoration: const InputDecoration(
-              hintText: 'Example: Find someone who can help with AI product fundraising',
-              border: OutlineInputBorder(),
-            ),
-          ),
-          const SizedBox(height: 10),
-          FilledButton.icon(
-            onPressed: _runQuery,
-            icon: const Icon(Icons.manage_search),
-            label: const Text('Run local RAG'),
-          ),
-          const SizedBox(height: 16),
-          Expanded(
-            child: _result == null
-                ? const Center(child: Text('Ask a business need to see deterministic recommendations.'))
-                : _RecommendationView(result: _result!, rerankFired: _rerankFired),
-          ),
-        ],
+        ),
       ),
     );
   }
