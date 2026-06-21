@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import '../../data/data.dart';
 import '../../domain/domain.dart';
 import '../app_state.dart';
+import '../widgets/encounter_capture_sheet.dart';
+import '../widgets/encounter_timeline.dart';
 
 class ContactsScreen extends StatefulWidget {
   const ContactsScreen({
@@ -59,7 +61,8 @@ class _ContactsScreenState extends State<ContactsScreen> {
                 controller: _searchController,
                 decoration: const InputDecoration(
                   prefixIcon: Icon(Icons.search),
-                  hintText: 'Search by name, company, job title, group, or notes',
+                  hintText:
+                      'Search by name, company, job title, group, or notes',
                   border: OutlineInputBorder(),
                 ),
                 onChanged: (_) => setState(() {}),
@@ -75,8 +78,11 @@ class _ContactsScreenState extends State<ContactsScreen> {
                           final contact = contacts[index];
                           return _ContactCard(
                             contact: contact,
-                            onEdit: () => _showContactEditor(context, contact: contact),
-                            onDelete: () => widget.appState.deleteContact(contact.id),
+                            onTap: () => _showContactDetail(context, contact),
+                            onEdit: () =>
+                                _showContactEditor(context, contact: contact),
+                            onDelete: () =>
+                                widget.appState.deleteContact(contact.id),
                           );
                         },
                       ),
@@ -100,6 +106,110 @@ class _ContactsScreenState extends State<ContactsScreen> {
       await widget.appState.upsertContact(result);
     }
   }
+
+  Future<void> _showContactDetail(BuildContext context, Contact contact) {
+    return showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (_) => _ContactDetailSheet(
+        appState: widget.appState,
+        contactId: contact.id,
+      ),
+    );
+  }
+}
+
+/// Contact detail with the encounter timeline and a one-tap "Add encounter"
+/// capture flow. Rebuilds from [ContactLensState] so a freshly captured
+/// encounter appears immediately in the timeline.
+class _ContactDetailSheet extends StatelessWidget {
+  const _ContactDetailSheet({required this.appState, required this.contactId});
+
+  final ContactLensState appState;
+  final String contactId;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return AnimatedBuilder(
+      animation: appState,
+      builder: (context, _) {
+        Contact? contact;
+        for (final candidate in appState.contacts) {
+          if (candidate.id == contactId) {
+            contact = candidate;
+            break;
+          }
+        }
+        if (contact == null) {
+          return const SizedBox.shrink();
+        }
+        final resolved = contact;
+
+        return Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(context).viewInsets.bottom,
+          ),
+          child: SafeArea(
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.of(context).size.height * 0.85,
+              ),
+              child: ListView(
+                padding: const EdgeInsets.all(16),
+                shrinkWrap: true,
+                children: [
+                  Text(resolved.displayName,
+                      style: theme.textTheme.headlineSmall),
+                  if (resolved.subtitle.isNotEmpty)
+                    Text(resolved.subtitle,
+                        style: theme.textTheme.bodyMedium
+                            ?.copyWith(color: theme.colorScheme.outline)),
+                  if (resolved.other.isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    Text(resolved.other),
+                  ],
+                  const Divider(height: 24),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Text('Encounters',
+                            style: theme.textTheme.titleMedium),
+                      ),
+                      FilledButton.tonalIcon(
+                        onPressed: () => _addEncounter(context, resolved),
+                        icon: const Icon(Icons.add_location_alt_outlined),
+                        label: const Text('Add encounter'),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  EncounterTimeline(encounters: resolved.encounters),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Future<void> _addEncounter(BuildContext context, Contact contact) async {
+    final reading = await appState.currentLocation();
+    if (!context.mounted) {
+      return;
+    }
+    final draft = await showEncounterCaptureSheet(
+      context,
+      voiceService: appState.voiceCapture,
+      reading: reading,
+      source: EncounterSource.manual,
+    );
+    if (draft == null) {
+      return;
+    }
+    await appState.captureEncounter(contact.id, draft);
+  }
 }
 
 class _HeaderRow extends StatelessWidget {
@@ -119,7 +229,8 @@ class _HeaderRow extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Contacts', style: Theme.of(context).textTheme.headlineSmall),
+              Text('Contacts',
+                  style: Theme.of(context).textTheme.headlineSmall),
               Text('$count local records indexed for private RAG'),
             ],
           ),
@@ -137,65 +248,74 @@ class _HeaderRow extends StatelessWidget {
 class _ContactCard extends StatelessWidget {
   const _ContactCard({
     required this.contact,
+    required this.onTap,
     required this.onEdit,
     required this.onDelete,
   });
 
   final Contact contact;
+  final VoidCallback onTap;
   final VoidCallback onEdit;
   final VoidCallback onDelete;
 
   @override
   Widget build(BuildContext context) {
     return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Row(
-          children: [
-            CircleAvatar(
-              child: Text(contact.displayName.characters.first.toUpperCase()),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(contact.displayName, style: Theme.of(context).textTheme.titleMedium),
-                  if (contact.subtitle.isNotEmpty) Text(contact.subtitle),
-                  if (contact.groups.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 6),
-                      child: Wrap(
-                        spacing: 6,
-                        runSpacing: 6,
-                        children: contact.groups
-                            .map((group) => Chip(label: Text(group), visualDensity: VisualDensity.compact))
-                            .toList(),
-                      ),
-                    ),
-                  if (contact.other.isNotEmpty)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 6),
-                      child: Text(
-                        contact.other,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                ],
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Row(
+            children: [
+              CircleAvatar(
+                child: Text(contact.displayName.characters.first.toUpperCase()),
               ),
-            ),
-            IconButton(
-              tooltip: 'Edit',
-              onPressed: onEdit,
-              icon: const Icon(Icons.edit_outlined),
-            ),
-            IconButton(
-              tooltip: 'Delete',
-              onPressed: onDelete,
-              icon: const Icon(Icons.delete_outline),
-            ),
-          ],
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(contact.displayName,
+                        style: Theme.of(context).textTheme.titleMedium),
+                    if (contact.subtitle.isNotEmpty) Text(contact.subtitle),
+                    if (contact.groups.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 6),
+                        child: Wrap(
+                          spacing: 6,
+                          runSpacing: 6,
+                          children: contact.groups
+                              .map((group) => Chip(
+                                  label: Text(group),
+                                  visualDensity: VisualDensity.compact))
+                              .toList(),
+                        ),
+                      ),
+                    if (contact.other.isNotEmpty)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 6),
+                        child: Text(
+                          contact.other,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              IconButton(
+                tooltip: 'Edit',
+                onPressed: onEdit,
+                icon: const Icon(Icons.edit_outlined),
+              ),
+              IconButton(
+                tooltip: 'Delete',
+                onPressed: onDelete,
+                icon: const Icon(Icons.delete_outline),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -321,4 +441,3 @@ class _ContactEditorDialogState extends State<_ContactEditorDialog> {
     );
   }
 }
-

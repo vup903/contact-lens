@@ -1,7 +1,9 @@
 import 'package:flutter/foundation.dart';
 
+import '../capture/capture.dart';
 import '../data/data.dart';
 import '../domain/domain.dart';
+import '../llm/llm.dart';
 import '../rag/hybrid_retriever.dart';
 import '../rag/rag.dart';
 import '../rag/semantic_contact_retriever.dart';
@@ -10,13 +12,48 @@ import '../rag/semantic/runtime_embedding_model.dart';
 import '../rag/semantic/semantic_reranker.dart';
 import '../scan/scan.dart';
 
+/// Outcome of a contextual (time + place + meaning) query: the parsed
+/// constraints the UI renders as chips, plus the retriever's explained result.
+class ContextualRecommendation {
+  const ContextualRecommendation({required this.query, required this.result});
+
+  /// The parsed query — drives the 時間 / 地點 / 語意 filter chips.
+  final ContextualQuery query;
+
+  /// Ranked contacts plus the human explanation of how they were filtered.
+  final ContextualRetrievalResult result;
+}
+
 class ContactLensState extends ChangeNotifier {
   ContactLensState({
     ContactRepository repository = const SharedPreferencesContactRepository(),
-  }) : _repository = repository;
+    GeoLocationService? geoService,
+    VoiceCaptureService? voiceService,
+    String? apiKeyOverride,
+  })  : _repository = repository,
+        _geoService = geoService ?? createGeoLocationService(),
+        _voiceService = voiceService ?? createVoiceCaptureService(),
+        _apiKeyOverride = apiKeyOverride {
+    _llm = createLlmAdapter(
+      apiKey: _apiKeyOverride,
+      cloudEnrichmentEnabled: _cloudEnrichmentEnabled,
+    );
+  }
 
   final ContactRepository _repository;
   final _recommender = const LocalContactRecommender();
+
+  // One-shot sensors (SSD C1/C2): sampled with consent at capture time, and
+  // degrade to null/false where plugins or permission are absent.
+  final GeoLocationService _geoService;
+  final VoiceCaptureService _voiceService;
+
+  // Generative enrichment. Defaults to the pure-Dart heuristic so the "No model
+  // API is called" guarantee holds out of the box (SSD C1); rebuilt when the
+  // user toggles cloud enrichment on with a configured key.
+  final String? _apiKeyOverride;
+  late LlmAdapter _llm;
+  var _cloudEnrichmentEnabled = false;
 
   // Real multilingual MiniLM embeddings. Known text resolves from baked offline
   // vectors; free-form text is embedded at request time via the local service
@@ -59,6 +96,144 @@ class ContactLensState extends ChangeNotifier {
     }
     _hybridEnabled = value;
     notifyListeners();
+  }
+
+  /// The voice service the capture sheet drives to record a spoken note. Exposed
+  /// so the UI can probe [VoiceCaptureService.ensurePermission] and hide the mic
+  /// affordance where recording is unavailable (web/desktop).
+  VoiceCaptureService get voiceCapture => _voiceService;
+
+  /// Whether an Anthropic API key is configured at all, so the UI can decide
+  /// whether to even show the "cloud enrichment" toggle (SSD §6).
+  bool get cloudEnrichmentAvailable =>
+      hasConfiguredApiKey(override: _apiKeyOverride);
+
+  /// Whether the user has opted into sending note/query text to Claude. Off by
+  /// default — the heuristic adapter covers the default, offline path (SSD C1).
+  bool get cloudEnrichmentEnabled => _cloudEnrichmentEnabled;
+
+  /// True when the active adapter actually calls Claude (key present *and*
+  /// enrichment enabled); drives the egress disclosure copy.
+  bool get llmIsRemote => _llm.isRemote;
+
+  /// Opts cloud enrichment on/off and rebuilds the adapter accordingly. A flip
+  /// to `true` only reaches Claude when a key is configured; otherwise it stays
+  /// on the heuristic (see [createLlmAdapter]).
+  void setCloudEnrichmentEnabled(bool value) {
+    if (_cloudEnrichmentEnabled == value) {
+      return;
+    }
+    _cloudEnrichmentEnabled = value;
+    _llm = createLlmAdapter(
+      apiKey: _apiKeyOverride,
+      cloudEnrichmentEnabled: value,
+    );
+    notifyListeners();
+  }
+
+  /// Samples the device location once, with consent. Returns `null` when denied
+  /// or unsupported so the capture flow proceeds without a place (SSD C2).
+  Future<GeoReading?> currentLocation() => _geoService.currentLocation();
+
+  /// Enriches [draft] (LLM/heuristic summary + tags) and appends the resulting
+  /// [Encounter] to the contact identified by [contactId], then persists. The
+  /// content hash includes encounters, so the RAG manifest rebuilds (SSD C5).
+  Future<void> captureEncounter(String contactId, EncounterDraft draft) async {
+    final index = _contacts.indexWhere((contact) => contact.id == contactId);
+    if (index < 0) {
+      return;
+    }
+    final encounter = await _buildEncounter(draft);
+    final contact = _contacts[index];
+    await upsertContact(
+      contact.copyWith(
+        encounters: <Encounter>[...contact.encounters, encounter],
+      ),
+    );
+  }
+
+  /// Creates a contact from a scanned [parsed] card and attaches the capture
+  /// [draft] as its first [Encounter] in one persist (the scan capture flow).
+  Future<void> addContactFromParsedCardWithContext(
+    ParsedBusinessCard parsed,
+    EncounterDraft draft,
+  ) async {
+    final contact = parsed.toContact(
+      id: newLocalId('scan'),
+      createdAt: DateTime.now().toUtc(),
+    );
+    final encounter = await _buildEncounter(draft);
+    await upsertContact(
+      contact.copyWith(encounters: <Encounter>[encounter]),
+    );
+  }
+
+  /// Builds an [Encounter] from a [draft]: runs the note/transcript through the
+  /// active adapter for a summary + tags (never empty — heuristic fallback,
+  /// SSD C2) and stamps a fresh local id.
+  Future<Encounter> _buildEncounter(EncounterDraft draft) async {
+    final text = <String>[draft.note, draft.transcript]
+        .where((part) => part.trim().isNotEmpty)
+        .join('\n')
+        .trim();
+    final insight = text.isEmpty
+        ? const NoteInsight.empty()
+        : await _llm.summarizeNote(text);
+    return Encounter(
+      id: newLocalId('enc'),
+      occurredAt: draft.occurredAt,
+      geo: draft.geo,
+      placeLabel: draft.placeLabel,
+      note: draft.note,
+      transcript: draft.transcript,
+      audioPath: draft.audioPath,
+      summary: insight.summary,
+      tags: insight.tags,
+      source: draft.source,
+    );
+  }
+
+  /// Answers a natural-language question that may mix **time + place + meaning**.
+  /// Parses the constraints, filters by encounter metadata, ranks the survivors
+  /// with the active base retriever (hybrid when [hybridEnabled], else lexical),
+  /// and returns both the parsed query (for the filter chips) and the explained
+  /// result. [now] is injectable for deterministic tests (SSD C5).
+  Future<ContextualRecommendation> recommendContextual(
+    String rawQuery, {
+    DateTime? now,
+  }) async {
+    final trimmed = rawQuery.trim();
+    if (trimmed.isEmpty) {
+      _lastRerankFired = false;
+      return const ContextualRecommendation(
+        query: ContextualQuery(semanticText: ''),
+        result: ContextualRetrievalResult.empty(),
+      );
+    }
+
+    final parsed = await _llm.parseQuery(trimmed, now: now);
+    final query = ContextualQuery.fromParsedQuery(parsed, rawQuery: trimmed);
+
+    final ContactRetriever base;
+    if (_hybridEnabled) {
+      // Warm runtime embeddings for the residual meaning and the corpus so the
+      // semantic tier works on free-form input, mirroring [recommend].
+      if (query.semanticText.trim().isNotEmpty) {
+        await _embedModel.warm(<String>[
+          query.semanticText.trim(),
+          for (final contact in _contacts) _contactEmbedText(contact),
+        ]);
+      }
+      base = _hybrid;
+    } else {
+      base = const WeightedContactRetriever();
+    }
+
+    final result =
+        ContextualRetriever(base: base).retrieve(query, _contacts, k: 5);
+    _lastRerankFired = result.results
+        .any((item) => item.matchReason.contains('semantic rerank'));
+    return ContextualRecommendation(query: query, result: result);
   }
 
   Future<void> load() async {
@@ -187,4 +362,3 @@ class ContactLensState extends ChangeNotifier {
     );
   }
 }
-
