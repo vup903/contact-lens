@@ -35,6 +35,24 @@ final sampleContacts = <Contact>[
     groups: const <String>['AI ecosystem', 'Taiwan network'],
     other:
         'Knows enterprise AI deployment, vector search, and on-premise data privacy reviews.',
+    encounters: <Encounter>[
+      Encounter(
+        id: 'enc-alex-chen-1',
+        occurredAt: DateTime.utc(2026, 4, 15, 10),
+        placeLabel: 'Taipei, Taiwan',
+        geo: const GeoPoint(latitude: 25.0330, longitude: 121.5654),
+        note:
+            'Met at an enterprise data-governance summit. Talked through on-prem '
+            'deployment and data-residency reviews for regulated customers.',
+        summary:
+            'Enterprise data-governance summit; on-prem deployment and data residency.',
+        tags: const <String>[
+          'enterprise security',
+          'data residency',
+          'on-prem deployment',
+        ],
+      ),
+    ],
   ),
   Contact(
     id: 'sample-mia-lin',
@@ -45,6 +63,17 @@ final sampleContacts = <Contact>[
     email: 'mia.lin@example.com',
     groups: const <String>['Finance', 'Taiwan network'],
     other: 'Focuses on B2B SaaS, productivity tools, and seed-stage fundraising.',
+    encounters: <Encounter>[
+      Encounter(
+        id: 'enc-mia-lin-1',
+        occurredAt: DateTime.utc(2026, 6, 15, 9),
+        placeLabel: 'Taipei, Taiwan',
+        geo: const GeoPoint(latitude: 25.0330, longitude: 121.5654),
+        note: 'Coffee in Taipei about a seed-stage B2B SaaS round she is advising.',
+        summary: 'Seed-stage B2B SaaS fundraising conversation in Taipei.',
+        tags: const <String>['fundraising', 'venture capital', 'b2b saas'],
+      ),
+    ],
   ),
   Contact(
     id: 'sample-jordan-lee',
@@ -55,6 +84,19 @@ final sampleContacts = <Contact>[
     groups: const <String>['Design partners'],
     other:
         'Strong at mobile onboarding, CRM workflows, visual systems, and App Store screenshots.',
+    encounters: <Encounter>[
+      Encounter(
+        id: 'enc-jordan-lee-1',
+        occurredAt: DateTime.utc(2026, 5, 20, 14),
+        placeLabel: 'New York, NY',
+        geo: const GeoPoint(latitude: 40.7128, longitude: -74.0060),
+        note:
+            'Design conference in New York. Reviewed mobile onboarding flows and a '
+            'CRM redesign together.',
+        summary: 'Design conference in New York; mobile onboarding and CRM redesign.',
+        tags: const <String>['product design', 'mobile onboarding'],
+      ),
+    ],
   ),
   Contact(
     id: 'sample-wu-kuei-hua',
@@ -65,6 +107,18 @@ final sampleContacts = <Contact>[
     phone: '0223571234#321',
     groups: const <String>['Finance', 'Taiwan network'],
     other: 'Public-sector finance contact. Notes came from scanned business card OCR.',
+    encounters: <Encounter>[
+      Encounter(
+        id: 'enc-wu-kuei-hua-1',
+        occurredAt: DateTime.utc(2026, 3, 10, 11),
+        placeLabel: 'Taipei, Taiwan',
+        geo: const GeoPoint(latitude: 25.0330, longitude: 121.5654),
+        note: 'Introduced at a central-bank fintech regulation forum in Taipei.',
+        summary: 'Central-bank fintech regulation forum in Taipei.',
+        tags: const <String>['public finance', 'fintech regulation'],
+        source: EncounterSource.scan,
+      ),
+    ],
   ),
   Contact(
     id: 'sample-priya-shah',
@@ -75,6 +129,19 @@ final sampleContacts = <Contact>[
     groups: const <String>['AI ecosystem'],
     other:
         'Organizes AI meetups and can introduce founders, cloud partners, and developer advocates.',
+    encounters: <Encounter>[
+      Encounter(
+        id: 'enc-priya-shah-1',
+        occurredAt: DateTime.utc(2026, 6, 10, 18),
+        placeLabel: 'San Francisco, CA',
+        geo: const GeoPoint(latitude: 37.7749, longitude: -122.4194),
+        note:
+            'She hosted an AI meetup in San Francisco and introduced two founders '
+            'and a cloud developer advocate.',
+        summary: 'Hosted an AI meetup in San Francisco; founder and DevRel intros.',
+        tags: const <String>['ai community', 'partnerships', 'developer relations'],
+      ),
+    ],
   ),
   // Headline demo contact: an ML engineer met "last month" (relative to the
   // 2026-06-21 demo clock) in San Francisco. Drives the flagship contextual
