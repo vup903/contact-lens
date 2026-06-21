@@ -1,4 +1,5 @@
 import '../domain/domain.dart';
+import 'contact_retriever.dart';
 import 'contact_to_text.dart';
 import 'tokenizer.dart';
 
@@ -16,7 +17,7 @@ class RetrievedContact {
   final String matchReason;
 }
 
-class WeightedContactRetriever {
+class WeightedContactRetriever implements ContactRetriever {
   const WeightedContactRetriever({
     this.weights = defaultWeights,
     this.phraseBoost = 10,
@@ -33,6 +34,7 @@ class WeightedContactRetriever {
   final Map<String, double> weights;
   final double phraseBoost;
 
+  @override
   List<RetrievedContact> retrieve(
     String userNeed,
     List<Contact> contacts, {

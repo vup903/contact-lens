@@ -1,3 +1,4 @@
+export 'contact_retriever.dart';
 export 'contact_to_text.dart';
 export 'recommender.dart';
 export 'retrieve_contacts.dart';
