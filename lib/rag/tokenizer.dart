@@ -1,6 +1,23 @@
 final _cjkPattern = RegExp(r'[\u3400-\u9fff]');
 final _latinPattern = RegExp(r'[a-z0-9]+');
 final _spacePattern = RegExp(r'\s+');
+final _singleLatinLetter = RegExp(r'^[a-z]$');
+
+// Common English function words and query fillers. They carry little retrieval
+// signal but, under substring matching, a token like "a" would otherwise match
+// almost every field of every contact and dominate the ranking. CJK tokens are
+// never filtered here.
+const _latinStopwords = <String>{
+  'a', 'an', 'and', 'the', 'or', 'of', 'to', 'for', 'in', 'on', 'at', 'with',
+  'by', 'from', 'as', 'into', 'about', 'who', 'whom', 'whose', 'that', 'this',
+  'these', 'those', 'is', 'are', 'am', 'be', 'can', 'could', 'would', 'should',
+  'will', 'find', 'need', 'want', 'looking', 'look', 'help', 'someone',
+  'somebody', 'anyone', 'me', 'my', 'our', 'please',
+};
+
+bool _isLatinNoiseToken(String token) {
+  return _singleLatinLetter.hasMatch(token) || _latinStopwords.contains(token);
+}
 
 String normalizeSearchText(String value) {
   return value
@@ -35,7 +52,11 @@ List<String> tokenizeQuery(String query) {
     final text = latinBuffer.toString();
     latinBuffer.clear();
     for (final match in _latinPattern.allMatches(text)) {
-      addToken(match.group(0)!);
+      final token = match.group(0)!;
+      if (_isLatinNoiseToken(token)) {
+        continue;
+      }
+      addToken(token);
     }
   }
 
