@@ -2,8 +2,10 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../../domain/domain.dart';
 import '../../scan/scan.dart';
 import '../app_state.dart';
+import '../widgets/encounter_capture_sheet.dart';
 
 class ScanScreen extends StatefulWidget {
   const ScanScreen({
@@ -32,13 +34,14 @@ class _ScanScreenState extends State<ScanScreen> {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final messenger = ScaffoldMessenger.of(context);
         final editor = Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Business Card Scan', style: Theme.of(context).textTheme.headlineSmall),
+            Text('Business Card Scan',
+                style: Theme.of(context).textTheme.headlineSmall),
             const SizedBox(height: 4),
-            const Text('Mobile can use local OCR. Web demo supports pasted OCR text.'),
+            const Text(
+                'Mobile can use local OCR. Web demo supports pasted OCR text.'),
             const SizedBox(height: 16),
             Wrap(
               spacing: 8,
@@ -47,7 +50,9 @@ class _ScanScreenState extends State<ScanScreen> {
                 FilledButton.icon(
                   onPressed: _isWorking ? null : _pickImageAndRecognize,
                   icon: const Icon(Icons.image_search),
-                  label: const Text(kIsWeb ? 'Pick image (web fallback)' : 'Pick image + OCR'),
+                  label: const Text(kIsWeb
+                      ? 'Pick image (web fallback)'
+                      : 'Pick image + OCR'),
                 ),
                 OutlinedButton.icon(
                   onPressed: _parseText,
@@ -56,15 +61,7 @@ class _ScanScreenState extends State<ScanScreen> {
                 ),
                 if (_parsed != null)
                   FilledButton.icon(
-                    onPressed: () async {
-                      await widget.appState.addContactFromParsedCard(_parsed!);
-                      if (!mounted) {
-                        return;
-                      }
-                      messenger.showSnackBar(
-                        const SnackBar(content: Text('Saved parsed contact.')),
-                      );
-                    },
+                    onPressed: _saveWithContext,
                     icon: const Icon(Icons.save),
                     label: const Text('Save contact'),
                   ),
@@ -145,6 +142,48 @@ class _ScanScreenState extends State<ScanScreen> {
       _parsed = parseBusinessCardText(_rawTextController.text);
     });
   }
+
+  /// Save flow with automated context capture: sample the location once, show
+  /// the capture sheet (time + place + note), then persist the contact with the
+  /// encounter attached. Skipping the sheet still saves the contact, sans
+  /// encounter — so the existing one-tap behavior remains available (SSD C2).
+  Future<void> _saveWithContext() async {
+    final parsed = _parsed;
+    if (parsed == null) {
+      return;
+    }
+    final messenger = ScaffoldMessenger.of(context);
+    final reading = await widget.appState.currentLocation();
+    if (!mounted) {
+      return;
+    }
+    final draft = await showEncounterCaptureSheet(
+      context,
+      voiceService: widget.appState.voiceCapture,
+      reading: reading,
+      source: EncounterSource.scan,
+    );
+    if (!mounted) {
+      return;
+    }
+    if (draft != null) {
+      await widget.appState.addContactFromParsedCardWithContext(parsed, draft);
+    } else {
+      await widget.appState.addContactFromParsedCard(parsed);
+    }
+    if (!mounted) {
+      return;
+    }
+    messenger.showSnackBar(
+      SnackBar(
+        content: Text(
+          draft != null
+              ? 'Saved contact with captured context.'
+              : 'Saved parsed contact.',
+        ),
+      ),
+    );
+  }
 }
 
 class _ParsedPreview extends StatelessWidget {
@@ -181,7 +220,8 @@ class _ParsedPreview extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Parsed contact', style: Theme.of(context).textTheme.titleMedium),
+            Text('Parsed contact',
+                style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 12),
             for (final row in rows)
               Padding(

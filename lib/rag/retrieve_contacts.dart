@@ -29,6 +29,9 @@ class WeightedContactRetriever implements ContactRetriever {
     'jobTitle': 3,
     'groups': 2,
     'other': 1,
+    'place': 3,
+    'tags': 3,
+    'encounterNotes': 1,
   };
 
   final Map<String, double> weights;
@@ -109,6 +112,9 @@ class WeightedContactRetriever implements ContactRetriever {
       'jobTitle': 'job title',
       'groups': 'groups',
       'other': 'notes',
+      'place': 'meeting place',
+      'tags': 'encounter tags',
+      'encounterNotes': 'encounter notes',
     };
 
     final parts = <String>[];
