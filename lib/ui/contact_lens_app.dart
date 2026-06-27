@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import 'app_state.dart';
-import 'screens/architecture_screen.dart';
 import 'screens/assistant_screen.dart';
 import 'screens/contacts_screen.dart';
 import 'screens/scan_screen.dart';
@@ -67,7 +66,6 @@ class _ContactLensShellState extends State<ContactLensShell> {
       ContactsScreen(appState: widget.appState),
       AssistantScreen(appState: widget.appState),
       ScanScreen(appState: widget.appState),
-      ArchitectureScreen(appState: widget.appState),
     ];
 
     return AnimatedBuilder(
@@ -105,11 +103,6 @@ class _ContactLensShellState extends State<ContactLensShell> {
                 icon: Icon(Icons.document_scanner_outlined),
                 selectedIcon: Icon(Icons.document_scanner),
                 label: 'Scan',
-              ),
-              NavigationDestination(
-                icon: Icon(Icons.schema_outlined),
-                selectedIcon: Icon(Icons.schema),
-                label: 'Architecture',
               ),
             ],
           ),

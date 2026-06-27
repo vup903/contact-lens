@@ -245,17 +245,15 @@ class _ContextualResultView extends StatelessWidget {
                   const SizedBox(height: 8),
                   Text(retrieved.matchReason),
                   const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 6,
-                    runSpacing: 6,
-                    children: [
-                      Chip(
-                          label: Text(
-                              'score ${retrieved.score.toStringAsFixed(2)}')),
-                      for (final field in retrieved.matchedFields)
-                        Chip(label: Text(field)),
-                    ],
-                  ),
+                  if (retrieved.matchedFields.isNotEmpty)
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: [
+                        for (final field in retrieved.matchedFields)
+                          Chip(label: Text(field)),
+                      ],
+                    ),
                 ],
               ),
             ),

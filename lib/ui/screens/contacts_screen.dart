@@ -19,33 +19,12 @@ class ContactsScreen extends StatefulWidget {
 }
 
 class _ContactsScreenState extends State<ContactsScreen> {
-  final _searchController = TextEditingController();
-
-  @override
-  void dispose() {
-    _searchController.dispose();
-    super.dispose();
-  }
-
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
       animation: widget.appState,
       builder: (context, _) {
-        final query = _searchController.text.trim().toLowerCase();
-        final contacts = widget.appState.contacts.where((contact) {
-          if (query.isEmpty) {
-            return true;
-          }
-          return [
-            contact.name,
-            contact.company,
-            contact.jobTitle,
-            contact.email,
-            contact.other,
-            contact.groups.join(' '),
-          ].join(' ').toLowerCase().contains(query);
-        }).toList()
+        final contacts = widget.appState.contacts.toList()
           ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
         return Padding(
@@ -57,20 +36,9 @@ class _ContactsScreenState extends State<ContactsScreen> {
                 onAdd: () => _showContactEditor(context),
               ),
               const SizedBox(height: 12),
-              TextField(
-                controller: _searchController,
-                decoration: const InputDecoration(
-                  prefixIcon: Icon(Icons.search),
-                  hintText:
-                      'Search by name, company, job title, group, or notes',
-                  border: OutlineInputBorder(),
-                ),
-                onChanged: (_) => setState(() {}),
-              ),
-              const SizedBox(height: 12),
               Expanded(
                 child: contacts.isEmpty
-                    ? const Center(child: Text('No contacts match this query.'))
+                    ? const Center(child: Text('No contacts yet.'))
                     : ListView.separated(
                         itemCount: contacts.length,
                         separatorBuilder: (_, __) => const SizedBox(height: 8),
