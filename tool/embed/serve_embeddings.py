@@ -22,12 +22,12 @@ from __future__ import annotations
 
 import json
 import math
+import socket
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 # Must match tool/embed/build_embeddings.py so runtime and precomputed vectors
 # live in the same space.
 MODEL_NAME = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
-HOST = "127.0.0.1"
 PORT = 8077
 
 _model = None
@@ -97,10 +97,23 @@ class Handler(BaseHTTPRequestHandler):
         pass
 
 
+# Dual-stack server so the app reaching "localhost:8077" resolves correctly
+# whether Windows hands it IPv6 (::1) or IPv4 (127.0.0.1).
+class _DualStackServer(ThreadingHTTPServer):
+    address_family = socket.AF_INET6
+
+    def server_bind(self):
+        try:
+            self.socket.setsockopt(socket.IPPROTO_IPV6, socket.IPV6_V6ONLY, 0)
+        except (AttributeError, OSError):
+            pass
+        super().server_bind()
+
+
 def main():
     get_model()  # load the model before accepting requests
-    print(f"embedding service on http://{HOST}:{PORT}  (model {MODEL_NAME})")
-    ThreadingHTTPServer((HOST, PORT), Handler).serve_forever()
+    print(f"embedding service on http://localhost:{PORT}  (model {MODEL_NAME})")
+    _DualStackServer(("", PORT), Handler).serve_forever()
 
 
 if __name__ == "__main__":
