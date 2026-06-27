@@ -12,6 +12,7 @@ coverage/
 *.iml
 .DS_Store
 Thumbs.db
+devtools_options.yaml
 
 # Local secrets and generated app config
 .env
